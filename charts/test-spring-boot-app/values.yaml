@@ -3,8 +3,8 @@
 # Declare variables to be passed into your templates.
 replicaCount: 1
 image:
-  repository: jenkinsx/test-spring-boot-app
-  tag: dev
+  repository: 10.47.253.167:5000/jenkinsx/test-spring-boot-app
+  tag: 0.0.18
   pullPolicy: IfNotPresent
 service:
   name: java
