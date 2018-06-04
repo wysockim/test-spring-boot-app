@@ -76,10 +76,10 @@ pipeline {
       }
 
       stage('Promote to Environments') {
-        environment {
+        //environment {
           //GIT_USERNAME = "$GIT_CREDS_USR"
           //GIT_API_TOKEN = "$GIT_CREDS_PSW"
-        }
+        //}
         when {
           branch 'master'
         }
