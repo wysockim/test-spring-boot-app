@@ -3,11 +3,11 @@
 # Declare variables to be passed into your templates.
 replicaCount: 1
 image:
-  repository: jenkinsx/test-spring-boot-app
+  repository: draft
   tag: dev
   pullPolicy: IfNotPresent
 service:
-  name: java
+  name: test-spring-boot-app
   type: ClusterIP
   externalPort: 80
   internalPort: 8080

@@ -1,21 +1,12 @@
-
 pipeline {
     agent {
       label "jenkins-maven"
     }
-
     environment {
-      ORG 		        = 'jenkinsx'
+      ORG               = 'wysockim'
       APP_NAME          = 'test-spring-boot-app'
-      //GIT_CREDS         = credentials('jenkins-x-git')
       CHARTMUSEUM_CREDS = credentials('jenkins-x-chartmuseum')
-
-      //GIT_USERNAME      = "$GIT_CREDS_USR"
-      //GIT_API_TOKEN     = "$GIT_CREDS_PSW"
-      JOB_NAME          = "$JOB_NAME"
-      BUILD_NUMBER      = "$BUILD_NUMBER"
     }
-
     stages {
       stage('CI Build and push snapshot') {
         when {
@@ -30,19 +21,20 @@ pipeline {
           container('maven') {
             sh "mvn versions:set -DnewVersion=$PREVIEW_VERSION"
             sh "mvn install"
-            sh "docker build -f Dockerfile.release -t $JENKINS_X_DOCKER_REGISTRY_SERVICE_HOST:$JENKINS_X_DOCKER_REGISTRY_SERVICE_PORT/$ORG/$APP_NAME:$PREVIEW_VERSION ."
-            sh "docker push $JENKINS_X_DOCKER_REGISTRY_SERVICE_HOST:$JENKINS_X_DOCKER_REGISTRY_SERVICE_PORT/$ORG/$APP_NAME:$PREVIEW_VERSION"
+            sh 'export VERSION=$PREVIEW_VERSION && skaffold run -f skaffold.yaml'
+
+            sh "jx step validate --min-jx-version 1.2.36"
+            sh "jx step post build --image \$JENKINS_X_DOCKER_REGISTRY_SERVICE_HOST:\$JENKINS_X_DOCKER_REGISTRY_SERVICE_PORT/$ORG/$APP_NAME:$PREVIEW_VERSION"
           }
 
-		  // comment out until draft pack includes preview environment charts
-          //dir ('./charts/preview') {
-          //  container('maven') {
-          //    sh "make preview"
-          //  }
-          //}
+          dir ('./charts/preview') {
+           container('maven') {
+             sh "make preview"
+             sh "jx preview --app $APP_NAME --dir ../.."
+           }
+          }
         }
       }
-
       stage('Build Release') {
         when {
           branch 'master'
@@ -51,41 +43,36 @@ pipeline {
           container('maven') {
             // ensure we're not on a detached head
             sh "git checkout master"
-
-            // until we switch to the new kubernetes / jenkins credential implementation use git credentials store
             sh "git config --global credential.helper store"
-
+            sh "jx step validate --min-jx-version 1.1.73"
+            sh "jx step git credentials"
             // so we can retrieve the version in later steps
             sh "echo \$(jx-release-version) > VERSION"
             sh "mvn versions:set -DnewVersion=\$(cat VERSION)"
           }
-
           dir ('./charts/test-spring-boot-app') {
             container('maven') {
               sh "make tag"
             }
           }
-
           container('maven') {
             sh 'mvn clean deploy'
-            sh "docker build -f Dockerfile.release -t $JENKINS_X_DOCKER_REGISTRY_SERVICE_HOST:$JENKINS_X_DOCKER_REGISTRY_SERVICE_PORT/$ORG/$APP_NAME:\$(cat VERSION) ."
-            sh "docker push $JENKINS_X_DOCKER_REGISTRY_SERVICE_HOST:$JENKINS_X_DOCKER_REGISTRY_SERVICE_PORT/$ORG/$APP_NAME:\$(cat VERSION)"
-            sh 'jx step changelog --version \$(cat VERSION)'
+
+            sh 'export VERSION=`cat VERSION` && skaffold run -f skaffold.yaml'
+
+            sh "jx step validate --min-jx-version 1.2.36"
+            sh "jx step post build --image \$JENKINS_X_DOCKER_REGISTRY_SERVICE_HOST:\$JENKINS_X_DOCKER_REGISTRY_SERVICE_PORT/$ORG/$APP_NAME:\$(cat VERSION)"
           }
         }
       }
-
       stage('Promote to Environments') {
-        //environment {
-          //GIT_USERNAME = "$GIT_CREDS_USR"
-          //GIT_API_TOKEN = "$GIT_CREDS_PSW"
-        //}
         when {
           branch 'master'
         }
         steps {
           dir ('./charts/test-spring-boot-app') {
             container('maven') {
+              sh 'jx step changelog --version v\$(cat ../../VERSION)'
 
               // release the helm chart
               sh 'make release'
@@ -96,6 +83,16 @@ pipeline {
           }
         }
       }
+    }
+    post {
+        always {
+            cleanWs()
+        }
+        failure {
+            input """Pipeline failed. 
+We will keep the build pod around to help you diagnose any failures. 
 
+Select Proceed or Abort to terminate the build pod"""
+        }
     }
   }
