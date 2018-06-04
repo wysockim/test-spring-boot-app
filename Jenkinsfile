@@ -7,11 +7,11 @@ pipeline {
     environment {
       ORG 		        = 'jenkinsx'
       APP_NAME          = 'test-spring-boot-app'
-      GIT_CREDS         = credentials('jenkins-x-git')
+      //GIT_CREDS         = credentials('jenkins-x-git')
       CHARTMUSEUM_CREDS = credentials('jenkins-x-chartmuseum')
 
-      GIT_USERNAME      = "$GIT_CREDS_USR"
-      GIT_API_TOKEN     = "$GIT_CREDS_PSW"
+      //GIT_USERNAME      = "$GIT_CREDS_USR"
+      //GIT_API_TOKEN     = "$GIT_CREDS_PSW"
       JOB_NAME          = "$JOB_NAME"
       BUILD_NUMBER      = "$BUILD_NUMBER"
     }
@@ -77,8 +77,8 @@ pipeline {
 
       stage('Promote to Environments') {
         environment {
-          GIT_USERNAME = "$GIT_CREDS_USR"
-          GIT_API_TOKEN = "$GIT_CREDS_PSW"
+          //GIT_USERNAME = "$GIT_CREDS_USR"
+          //GIT_API_TOKEN = "$GIT_CREDS_PSW"
         }
         when {
           branch 'master'
